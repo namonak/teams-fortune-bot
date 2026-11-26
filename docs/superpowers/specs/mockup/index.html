@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>쓱부엉 운세 카드 시안</title>
+<script src="https://unpkg.com/adaptivecards@3.0.6/dist/adaptivecards.min.js"></script>
+<style>
+  body { margin: 0; background: #f5f5f5; font-family: "Segoe UI", -apple-system, "Apple SD Gothic Neo", sans-serif; color: #242424; }
+  .chat { max-width: 640px; margin: 32px auto; padding: 0 16px; }
+  .msg { display: flex; gap: 10px; align-items: flex-start; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; flex: none; }
+  .meta { font-size: 12px; color: #616161; margin-bottom: 4px; }
+  .meta b { color: #242424; font-weight: 600; margin-right: 8px; }
+  .bubble { background: #fff; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,.12); padding: 4px 0; width: 100%; max-width: 520px; }
+  .note { max-width: 520px; margin: 16px 0 0 42px; font-size: 12px; color: #616161; line-height: 1.6; }
+  .ac-selectable { cursor: pointer; }
+  .ac-selectable:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+<div class="chat">
+  <div class="meta" style="margin-left:42px">11월 27일 (금): 평소 카드</div>
+  <div class="msg">
+    <img class="avatar" src="owl.png" alt="">
+    <div style="flex:1">
+      <div class="meta"><b>쓱부엉</b>오전 9:00</div>
+      <div class="bubble" id="card"></div>
+    </div>
+  </div>
+  <div class="meta" style="margin:32px 0 4px 42px">12월 11일 (금): 생일이 있는 날 (홍길동님 생일 12월 12일이 토요일이라 하루 일찍, 12줄 생략)</div>
+  <div class="msg">
+    <img class="avatar" src="owl.png" alt="">
+    <div style="flex:1">
+      <div class="meta"><b>쓱부엉</b>오전 9:00</div>
+      <div class="bubble" id="card2"></div>
+    </div>
+  </div>
+  <p class="note">시안입니다. 띠 줄을 누르면 그 자리에서 상세 내용이 펼쳐집니다(Action.ToggleVisibility, 누른 사람 화면에서만 동작). 색과 글꼴은 Teams 밝은 테마를 흉내 낸 값이고, 실제 Teams에서는 Teams 자체 색이 적용됩니다.</p>
+</div>
+<script>
+// 2026-11-27 = 乙巳일(뱀날). 등급: 충 > 육합·삼합 > 형·해 > 보통
+const today = { label: '11월 27일 (금)', iljin: '을사일(뱀날)' };
+const rows = [
+  ['쥐', 3, '보통', '평범한 하루… 그게 제일 어려운 거래요…', [3,4,3], '김치찌개', '회색', '메신저 답장은 천천히 해도 괜찮아요…'],
+  ['소', 4, '삼합', '묵묵히 한 일이 오늘 눈에 띄어요…', [4,3,4], '비빔밥', '갈색', '영수증은… 장부장님께 바로 드리세요…'],
+  ['호랑이', 2, '형·해', '말이 앞서면 일이 꼬여요… 한 박자만 쉬어요…', [2,3,2], '칼국수', '남색', '회의에서는 듣는 쪽이 이기는 날이에요…'],
+  ['토끼', 3, '보통', '작은 친절이 돌아오는 날이에요…', [3,3,4], '쌀국수', '연두색', '엘리베이터 문 잡아 주기… 그런 거요…'],
+  ['용', 3, '보통', '큰 그림보다… 오늘 할 일 하나만…', [3,2,3], '돈가스', '금색', '점심 메뉴는 투표곰한테 맡겨 보세요…'],
+  ['뱀', 3, '오늘의 띠', '뱀의 날이에요… 조금 주목받을지도…', [3,4,3], '냉면', '청록색', '주목받으면… 저처럼 숨지 말고 그냥 웃으세요…'],
+  ['말', 3, '보통', '서두르면 놓치고, 기다리면 굴러와요…', [4,3,2], '제육볶음', '주황색', '병오년도 한 달 남았어요… 마무리 잘 하세요…'],
+  ['양', 3, '보통', '부드럽게 말하면 다 통하는 날이에요…', [3,4,3], '순두부찌개', '크림색', '부탁할 일이 있으면 오늘 하세요…'],
+  ['원숭이', 5, '육합', '오늘의 주인공… 손 드는 일마다 풀려요…', [5,5,4], '국밥', '노란색', '쿠웨이트박 판에 한 번 껴 봐도… 괜찮을지도요…'],
+  ['닭', 4, '삼합', '꼼꼼함이 빛나는 날… 오타 하나를 잡아요…', [4,3,5], '샐러드', '흰색', '칼퇴운이 좋아요… 6시 정각을 노려 보세요…'],
+  ['개', 3, '보통', '맡긴 일이 조용히 끝나 있어요…', [3,3,3], '짜장면', '하늘색', '투표곰처럼… 말없이 곁에 있어 주는 날…'],
+  ['돼지', 1, '충', '오늘은 쉬어 가는 날… 무리하지 않기로 해요…', [1,4,2], '떡볶이', '분홍색', '그래도 점심운은 괜찮아요… 맛있는 거 드세요…'],
+];
+const why = { '육합': '뱀과 짝이 맞는 육합이에요', '삼합': '뱀과 뜻이 맞는 삼합이에요', '형·해': '뱀과 조금 부딪히는 형·해예요', '충': '뱀과 마주 서는 충이에요', '보통': '뱀과 특별한 관계가 없어요', '오늘의 띠': '오늘이 바로 뱀의 날이에요' };
+const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+
+const rowItems = rows.flatMap(([name, score, rel, line, [meet, lunch, off], menu, color, extra], i) => [
+  {
+    type: 'Container', id: `row${i}`, separator: true, spacing: 'Small',
+    selectAction: { type: 'Action.ToggleVisibility', targetElements: [`d${i}`, `open${i}`, `close${i}`] },
+    items: [{ type: 'ColumnSet', columns: [
+      { type: 'Column', width: '52px', items: [{ type: 'TextBlock', text: name, weight: 'Bolder' }] },
+      { type: 'Column', width: 'auto', items: [{ type: 'TextBlock', text: stars(score), color: score >= 4 ? 'Good' : score <= 2 ? 'Attention' : 'Warning' }] },
+      { type: 'Column', width: 'stretch', items: [{ type: 'TextBlock', text: line, wrap: true }] },
+      { type: 'Column', width: 'auto', items: [
+        { type: 'TextBlock', id: `open${i}`, text: '▾', isSubtle: true },
+        { type: 'TextBlock', id: `close${i}`, text: '▴', isSubtle: true, isVisible: false, spacing: 'None' },
+      ] },
+    ] }],
+  },
+  {
+    type: 'Container', id: `d${i}`, isVisible: false, style: 'emphasis', spacing: 'None',
+    items: [
+      { type: 'FactSet', facts: [
+        { title: '회의운', value: stars(meet) },
+        { title: '점심운', value: stars(lunch) },
+        { title: '칼퇴운', value: stars(off) },
+        { title: '행운 메뉴', value: menu + (menu === '국밥' ? ' (냠요정한테 말해보세요…)' : '') },
+        { title: '행운의 색', value: color },
+      ] },
+      { type: 'TextBlock', text: extra, wrap: true },
+      { type: 'TextBlock', text: `${why[rel]}…`, isSubtle: true, size: 'Small', spacing: 'Small' },
+    ],
+  },
+]);
+
+const card = {
+  type: 'AdaptiveCard', version: '1.5',
+  body: [
+    { type: 'ColumnSet', columns: [
+      { type: 'Column', width: 'auto', items: [{ type: 'Image', url: 'owl.png', size: 'Small', style: 'Person' }] },
+      { type: 'Column', width: 'stretch', verticalContentAlignment: 'Center', items: [
+        { type: 'TextBlock', text: `${today.label} 쪽지예요…`, weight: 'Bolder', size: 'Medium' },
+        { type: 'TextBlock', text: '금요일이에요… 칼퇴운부터 보세요… 자기 띠를 누르면 펼쳐져요…', isSubtle: true, wrap: true, spacing: 'None' },
+      ] },
+    ] },
+    { type: 'TextBlock', text: '오늘 제일 좋은 띠는 **원숭이**… **돼지**띠는 쉬어 가세요…', wrap: true, spacing: 'Medium' },
+    ...rowItems,
+    { type: 'TextBlock', text: '어제 냠요정이 붕어빵을 주고 갔어요… 반은 남겨 뒀어요…', wrap: true, separator: true },
+    { type: 'TextBlock', text: `오늘은 ${today.iljin}이에요… 재미로만 봐 주세요…`, isSubtle: true, size: 'Small', wrap: true },
+    { type: 'TextBlock', text: '…그럼 이만. (쓱)', isSubtle: true, horizontalAlignment: 'Right', spacing: 'None' },
+  ],
+};
+
+AdaptiveCards.AdaptiveCard.onProcessMarkdown = (t, r) => { r.outputHtml = t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); r.didProcess = true; };
+const ac = new AdaptiveCards.AdaptiveCard();
+ac.hostConfig = new AdaptiveCards.HostConfig({
+  fontFamily: '"Segoe UI", -apple-system, "Apple SD Gothic Neo", sans-serif',
+  spacing: { small: 6, default: 10, medium: 16, large: 20, extraLarge: 28, padding: 14 },
+  separator: { lineThickness: 1, lineColor: '#EDEBE9' },
+  fontSizes: { small: 12, default: 14, medium: 16, large: 20, extraLarge: 24 },
+  factSet: { title: { weight: 'Bolder', size: 'Small', isSubtle: true }, value: { size: 'Small' }, spacing: 10 },
+  containerStyles: {
+    default: { backgroundColor: '#FFFFFF', foregroundColors: {
+      default: { default: '#242424', subtle: '#616161' },
+      good: { default: '#0F7B6C', subtle: '#0F7B6C' },
+      warning: { default: '#8A6D00', subtle: '#8A6D00' },
+      attention: { default: '#C4314B', subtle: '#C4314B' },
+    } },
+    emphasis: { backgroundColor: '#F5F5F5', foregroundColors: {
+      default: { default: '#242424', subtle: '#616161' },
+    } },
+  },
+});
+ac.parse(card);
+document.getElementById('card').appendChild(ac.render());
+
+const card2 = {
+  type: 'AdaptiveCard', version: '1.5',
+  body: [
+    card.body[0],
+    { type: 'Container', style: 'emphasis', spacing: 'Medium', items: [
+      { type: 'TextBlock', text: '생일 쪽지', weight: 'Bolder' },
+      { type: 'TextBlock', text: '내일은 **홍길동**님 생일이에요… 주말이라서… 하루 일찍 두고 가요…', wrap: true },
+      { type: 'TextBlock', text: '오늘 운세는 띠 상관없이… 전부 ★★★★★로 해 뒀어요… 축하해요… (쓱)', wrap: true },
+    ] },
+    { type: 'TextBlock', text: '오늘 제일 좋은 띠는 **호랑이**… **뱀**띠는 쉬어 가세요…', wrap: true, spacing: 'Medium' },
+    { type: 'TextBlock', text: '(띠별 12줄은 평소와 같음)', isSubtle: true, size: 'Small', separator: true },
+    { type: 'TextBlock', text: '…그럼 이만. (쓱)', isSubtle: true, horizontalAlignment: 'Right' },
+  ],
+};
+card2.body[0] = JSON.parse(JSON.stringify(card.body[0]).replace('11월 27일 (금)', '12월 11일 (금)'));
+const ac2 = new AdaptiveCards.AdaptiveCard();
+ac2.hostConfig = ac.hostConfig;
+ac2.parse(card2);
+document.getElementById('card2').appendChild(ac2.render());
+window.cardJson = card;
+</script>
+</body>
+</html>

@@ -17,6 +17,7 @@
 - 추가 요소 4가지: 머리글 요약 한 줄, 요일과 특별한 날 문구, 쓱부엉 근황 한 줄, 생일 쪽지.
 - 생일은 모두 양력입니다.
 - 문장 생성은 발송 직전 LLM 1회 호출 방식(아래 3절의 방식 A)입니다.
+- LLM은 Gemini를 쓰되, 문장 품질을 위해 장부장보다 상위 모델인 Gemini 3.6 Flash를 씁니다.
 
 이번 단계의 산출물은 이 설계 문서입니다. 문서 승인 후 별도 구현 계획을 작성합니다.
 
@@ -24,7 +25,7 @@
 
 참조 저장소는 `../team-meal-bot`(냠요정)입니다. 정해진 시각에 단체방으로 먼저 메시지를 보내는 구조가 같기 때문입니다.
 TypeScript, Express, Microsoft Agents SDK(`@microsoft/agents-hosting`), Node 내장 `node:sqlite`, Docker Compose를 그대로 씁니다.
-LLM 호출 방식은 `../teambi-agent`(장부장)의 `src/gemini.js` 설정 이름과 기본 모델을 따릅니다.
+LLM은 `../teambi-agent`(장부장)와 같은 Gemini API를 쓰고 환경 변수 이름(`GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_REASONING_EFFORT`)을 맞춥니다. 모델은 문장 품질을 위해 장부장과 다르게 정합니다.
 
 | 경로 | 책임 |
 | --- | --- |
@@ -98,9 +99,9 @@ LLM 호출 방식은 `../teambi-agent`(장부장)의 `src/gemini.js` 설정 이�
 | 항목 | 설계값 |
 | --- | --- |
 | 공급자 | Gemini API의 OpenAI 호환 엔드포인트(`https://generativelanguage.googleapis.com/v1beta/openai/`) |
-| 모델 | `GEMINI_MODEL`, 기본값 `gemini-3.5-flash-lite`(장부장과 같음) |
-| 사고 수준 | `reasoning_effort: minimal`(장부장과 같음) |
-| 호출 방식 | `fetch` 1회, 재시도 없음, 제한 시간 20초 |
+| 모델 | `GEMINI_MODEL`, 기본값 `gemini-3.6-flash`. 더 새로운 Flash 모델은 환경 변수로 바꿔 시험합니다 |
+| 사고 수준 | `GEMINI_REASONING_EFFORT`, 기본값 `low`(구현 담당 판단). 하루 1회 호출이라 응답 속도보다 문장 품질을 우선합니다 |
+| 호출 방식 | `fetch` 1회, 재시도 없음, 제한 시간 60초 |
 | 응답 형식 | JSON 응답 모드. 구현 시 Gemini 문서에서 지원 방식 확인 |
 | 호출 시점 | 그날 첫 발송 시점에 1회. 결과는 날짜별로 저장하고 멘션 재요청에는 저장본을 씁니다 |
 
@@ -172,7 +173,7 @@ LLM에 보내는 내용: 날짜, 요일, 특별한 날 힌트, 일진, 12띠 각
 - 조건: 한국 시간 평일, `holidays.ts` 공휴일이 아님, 09:00~09:59, 그날 그 대화방 발송 기록 없음.
   냠요정은 정각 1분만 확인하지만, 쓱부엉은 서버 재시작으로 9시를 놓쳐도 10시 전이면 발송합니다.
 - 순서: 그날 운세가 저장돼 있지 않으면 생성(LLM 또는 템플릿)해 저장 → 대화방별 발송 기록을 먼저 넣음 → 카드 발송 → 실패하면 발송 기록을 지우고 다음 주기에 재시도.
-- 같은 날 LLM 호출이 겹치지 않도록 생성 중 표시를 둡니다(제한 시간 20초 < 실행 주기 30초).
+- 같은 날 LLM 호출이 겹치지 않도록 생성 중 표시를 둡니다. 생성이 끝나기 전 주기에는 발송을 건너뜁니다.
 
 ### 8.2 대화방 등록
 
@@ -237,7 +238,7 @@ LLM에 보내는 내용: 날짜, 요일, 특별한 날 힌트, 일진, 12띠 각
 | Compose 볼륨 | `fortune-data` |
 | Teams ZIP | `dist/team-fortune-bot-YYYYMMDD-HHMMSS.zip`, 한국 시간 |
 
-환경 변수: `MicrosoftAppId`, `MicrosoftAppPassword`, `MicrosoftAppTenantId`, `PUBLIC_BASE_URL`, `DATABASE_PATH`, `PORT`, `GEMINI_API_KEY`, `GEMINI_MODEL`(선택), `BIRTHDAYS`.
+환경 변수: `MicrosoftAppId`, `MicrosoftAppPassword`, `MicrosoftAppTenantId`, `PUBLIC_BASE_URL`, `DATABASE_PATH`, `PORT`, `GEMINI_API_KEY`, `GEMINI_MODEL`(선택), `GEMINI_REASONING_EFFORT`(선택), `BIRTHDAYS`.
 `GEMINI_API_KEY`가 없으면 시작은 하되 템플릿 문장만 씁니다. 기동 로그에 이 사실을 남깁니다.
 쓱부엉용 별도 앱 등록을 쓰며 기존 봇의 ID와 비밀값을 복사하지 않습니다.
 
@@ -253,9 +254,10 @@ LLM에 보내는 내용: 날짜, 요일, 특별한 날 힌트, 일진, 12띠 각
 
 ## 11. 예상 비용
 
-Gemini Developer API 가격표 기준 `gemini-3.5-flash-lite` 유료(Standard) 단가는 입력 100만 토큰당 0.30달러, 출력 100만 토큰당 2.50달러입니다. [1]
-1회 호출 토큰 수는 아직 측정하지 않았습니다. 입력 약 2,500토큰, 출력 약 3,500토큰(사고 토큰 포함)으로 가정하면 1회 약 0.01달러, 연간 업무일 약 250일 기준 연 2.5달러 안팎입니다. 구현 후 실제 사용량으로 다시 계산합니다.
-같은 가격표에서 이 모델은 무료 등급도 제공합니다. 하루 1회 호출은 무료 등급 사용량 제한 안에 들어갈 것으로 보지만, 무료 등급은 입력 내용이 Google 제품 개선에 쓰일 수 있으므로 어느 등급을 쓸지는 운영자가 정합니다. 이름과 생일은 LLM에 보내지 않습니다.
+Gemini Developer API 가격표 기준 `gemini-3.6-flash` 유료(Standard) 단가는 100만 토큰당 입력 0.75달러, 출력 3.75달러(2026-12-31까지)이고, 2027-01-01부터 입력 1.50달러, 출력 7.50달러입니다. [1]
+1회 호출 토큰 수는 아직 측정하지 않았습니다. 입력 약 2,500토큰, 출력 약 5,500토큰(사고 토큰 포함)으로 가정하면 2027년 단가로 1회 약 0.05달러, 연간 업무일 약 250일 기준 연 11달러 안팎입니다. 구현 후 실제 사용량으로 다시 계산합니다.
+비교한 다른 모델의 같은 가정 기준 연간 예상: `gemini-3.5-flash-lite`(장부장 기본값) 약 3달러, Claude Sonnet 5.5 약 15달러, Claude Opus 5.5 약 30달러. 사용자는 기존 Gemini 키를 쓸 수 있는 Gemini 3.6 Flash를 선택했습니다.
+무료 등급은 입력 내용이 Google 제품 개선에 쓰일 수 있으므로 어느 등급을 쓸지는 운영자가 정합니다. 이름과 생일은 LLM에 보내지 않습니다.
 서버, 도메인, 봇 등록은 기존 봇과 같은 방식을 쓰므로 이 봇 때문에 새로 생기는 비용은 LLM 호출 외에는 없을 것으로 봅니다.
 
 ## 12. 범위 밖
@@ -281,8 +283,9 @@ Gemini Developer API 가격표 기준 `gemini-3.5-flash-lite` 유료(Standard) �
 
 ## 14. 근거
 
-1. Google AI for Developers, [Gemini Developer API pricing](https://ai.google.dev/gemini-api/docs/pricing), 2026-11-26 확인. `gemini-3.5-flash-lite` 단가와 무료 등급.
+1. Google AI for Developers, [Gemini Developer API pricing](https://ai.google.dev/gemini-api/docs/pricing), 2026-11-26 확인. `gemini-3.6-flash`, `gemini-3.5-flash-lite` 단가와 무료 등급.
 2. 로컬 `../team-meal-bot`, 2026-11-26 확인(커밋 `7c644e9`). `src/index.ts`, `src/scheduler.ts`, `src/store.ts`, `src/holidays.ts`, `compose.yaml`, `package.json`.
 3. 로컬 `../team-raffle-bot`, 2026-11-26 확인(커밋 `00f719b`). 설계 문서 형식, `.github/workflows/security.yml`, 보안 커밋 이력.
-4. 로컬 `../teambi-agent`, 2026-11-26 확인(커밋 `1fdf822`). `src/gemini.js`의 기본 모델과 사고 수준 설정.
-5. 사용자 요구와 2026-11-26 대화 승인 내용. 콜네임, 공개 방식, 카드 형태, 추가 요소, 생일, 구현 방식.
+4. 로컬 `../teambi-agent`, 2026-11-26 확인(커밋 `1fdf822`). `src/gemini.js`의 Gemini 엔드포인트와 환경 변수 이름.
+5. 사용자 요구와 2026-11-26 대화 승인 내용. 콜네임, 공개 방식, 카드 형태, 추가 요소, 생일, 구현 방식, 모델.
+6. Anthropic 가격표(Claude API 스킬 캐시, 2026-11-03 기준). Claude Opus 5.5, Claude Sonnet 5.5 비교 단가.

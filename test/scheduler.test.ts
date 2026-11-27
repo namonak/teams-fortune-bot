@@ -69,6 +69,22 @@ test('대화방마다 자기 발송 시각에 보내고, 시각을 바꿔도 같
   assert.equal(deps.calls, 1);
 });
 
+test('앞 대화방 발송 중에 시각을 바꾼 대화방은 바뀐 시각을 따른다', async () => {
+  const deps = fakeDeps(), sent: string[] = [];
+  const store = Store.open(':memory:'); store.activateConversation('c1', ref('c1')); store.activateConversation('c2', ref('c2'));
+  const adapter = {
+    async continueConversation(_appId: string, reference: any, fn: (ctx: any) => Promise<void>) {
+      // c1에 보내는 동안 누군가 c2 시각을 15:00으로 바꾼다
+      if (reference.conversation.id === 'c1') store.setSendTime('c2', '15:00');
+      await fn({ async sendActivity() { sent.push(reference.conversation.id); return { id: `m${sent.length}` }; } });
+    },
+  } as Parameters<typeof runScheduledTasks>[0];
+  await runScheduledTasks(adapter, 'app', store, deps, new Date('2026-11-27T09:00:30+09:00'));
+  assert.deepEqual(sent, ['c1']);
+  await runScheduledTasks(adapter, 'app', store, deps, new Date('2026-11-27T15:00:30+09:00'));
+  assert.deepEqual(sent, ['c1', 'c2']);
+});
+
 test('발송 시각이 된 대화방이 없으면 운세를 만들지 않는다', async () => {
   const adapter = fakeAdapter(), deps = fakeDeps();
   const store = Store.open(':memory:'); store.activateConversation('c1', ref('c1')); store.setSendTime('c1', '11:00');

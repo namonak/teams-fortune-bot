@@ -58,7 +58,8 @@ export async function runScheduledTasks(adapter: Pick<CloudAdapter, 'continueCon
   for (const { id, reference } of due) {
     // 앞 주기의 발송이 아직 끝나지 않은 대화방은 claim하지 않는다(늦은 응답 중 5분 재확보로 두 번 나가는 것을 막는다)
     const key = `${id}\n${date}`;
-    if (sending.has(key) || !store.claimDelivery(id, date, now)) continue;
+    // 앞 대화방 발송을 기다리는 사이 시각이 바뀌었을 수 있어 저장된 시각을 다시 확인한다
+    if (!isSendWindow(now, store.sendTime(id)) || sending.has(key) || !store.claimDelivery(id, date, now)) continue;
     sending.add(key);
     try {
       // continueConversation은 logic 안 예외를 onTurnError로 넘기고 정상 종료하므로 안에서 잡아 밖에서 다시 던진다

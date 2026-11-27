@@ -9,8 +9,21 @@ const ok = { rows: ANIMALS.map((a) => ({ animal: a, line: '좋은 하루…', ex
 const reply = (body: unknown, status = 200) => async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(body) } }] }), { status });
 
 test('정상 응답', async () => {
-  const r = await generateTexts(facts, [], { GEMINI_API_KEY: 'k' }, reply(ok));
+  const r = await generateTexts(facts, [], { OPENROUTER_API_KEY: 'k' }, reply(ok));
   assert.equal(r.source, 'llm'); assert.equal(r.texts.rows.length, 12); assert.equal(r.texts.birthday, '케이크…');
+});
+
+test('OpenRouter로 요청하고 .env 값의 공백을 지운다', async () => {
+  const sent: { url: string; init: RequestInit }[] = [];
+  const f = async (url: string, init: RequestInit) => { sent.push({ url, init }); return reply(ok)(); };
+  await generateTexts(facts, [], { OPENROUTER_API_KEY: ' k\r' }, f as unknown as typeof fetch);
+  await generateTexts(facts, [], { OPENROUTER_API_KEY: 'k', OPENROUTER_MODEL: 'google/gemini-3.5-flash-lite ', OPENROUTER_BASE_URL: 'http://127.0.0.1:9/v1/' }, f as unknown as typeof fetch);
+  assert.equal(sent[0].url, 'https://openrouter.ai/api/v1/chat/completions');
+  assert.equal((sent[0].init.headers as Record<string, string>).Authorization, 'Bearer k');
+  const body = JSON.parse(sent[0].init.body as string);
+  assert.equal(body.model, 'google/gemini-3.6-flash'); assert.equal(body.reasoning_effort, 'low'); assert.equal(body.response_format.type, 'json_schema');
+  assert.equal(sent[1].url, 'http://127.0.0.1:9/v1/chat/completions');
+  assert.equal(JSON.parse(sent[1].init.body as string).model, 'google/gemini-3.5-flash-lite');
 });
 
 test('프롬프트에 이름·인원 수가 없다', () => {
@@ -20,7 +33,7 @@ test('프롬프트에 이름·인원 수가 없다', () => {
 });
 
 test('실패는 모두 템플릿', async () => {
-  const env = { GEMINI_API_KEY: 'k' };
+  const env = { OPENROUTER_API_KEY: 'k' };
   for (const [name, f] of [
     ['HTTP 500', reply(ok, 500)],
     ['JSON 아님', async () => new Response('{"choices":[{"message":{"content":"앗"}}]}')],

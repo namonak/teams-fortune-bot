@@ -2,7 +2,7 @@ import { ANIMALS, seeded, type DayFacts } from './domain.js';
 import { BIRTHDAY, EXTRAS, LINES, NEWS } from './templates.js';
 
 export type DayTexts = { rows: { line: string; extra: string }[]; news: string; birthday: string | null };
-export type LlmEnv = { GEMINI_API_KEY?: string; GEMINI_MODEL?: string; GEMINI_REASONING_EFFORT?: string; GEMINI_BASE_URL?: string };
+export type LlmEnv = { OPENROUTER_API_KEY?: string; OPENROUTER_MODEL?: string; OPENROUTER_REASONING_EFFORT?: string; OPENROUTER_BASE_URL?: string };
 
 const WEEKDAYS = '일월화수목금토';
 
@@ -111,14 +111,15 @@ function schema(wantBirthday: boolean) {
 async function callLlm(facts: DayFacts, recentNews: string[], env: LlmEnv, fetchImpl: typeof fetch): Promise<DayTexts | string> {
   const { system, user } = buildPrompt(facts, recentNews);
   const wantBirthday = facts.birthday !== null;
-  const base = env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+  // OpenRouter의 OpenAI 호환 API로 Gemini를 부릅니다. .env 값의 앞뒤 공백은 지웁니다.
+  const base = (env.OPENROUTER_BASE_URL?.trim() || 'https://openrouter.ai/api/v1').replace(/\/+$/, '');
   try {
-    const res = await fetchImpl(`${base}chat/completions`, {
+    const res = await fetchImpl(`${base}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GEMINI_API_KEY}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.OPENROUTER_API_KEY!.trim()}` },
       body: JSON.stringify({
-        model: env.GEMINI_MODEL || 'gemini-3.6-flash',
-        reasoning_effort: env.GEMINI_REASONING_EFFORT || 'low',
+        model: env.OPENROUTER_MODEL?.trim() || 'google/gemini-3.6-flash',
+        reasoning_effort: env.OPENROUTER_REASONING_EFFORT?.trim() || 'low',
         response_format: schema(wantBirthday),
         messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
       }),
@@ -135,7 +136,7 @@ async function callLlm(facts: DayFacts, recentNews: string[], env: LlmEnv, fetch
 }
 
 export async function generateTexts(facts: DayFacts, recentNews: string[], env: LlmEnv, fetchImpl: typeof fetch = fetch): Promise<{ texts: DayTexts; source: 'llm' | 'template'; reason?: string }> {
-  const r = env.GEMINI_API_KEY ? await callLlm(facts, recentNews, env, fetchImpl) : 'GEMINI_API_KEY 없음';
+  const r = env.OPENROUTER_API_KEY?.trim() ? await callLlm(facts, recentNews, env, fetchImpl) : 'OPENROUTER_API_KEY 없음';
   if (typeof r !== 'string') return { texts: r, source: 'llm' };
   // 응답 본문과 키는 로그에 넣지 않습니다.
   console.warn('[llm] 템플릿 사용:', r);

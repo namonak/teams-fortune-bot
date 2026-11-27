@@ -31,7 +31,7 @@ function fakeAdapter(opts: { fail?: boolean } = {}) {
 
 function fakeDeps() {
   const deps = { calls: 0 } as FortuneDeps & { calls: number };
-  deps.env = { GEMINI_API_KEY: 'test-key' };
+  deps.env = { OPENROUTER_API_KEY: 'test-key' };
   deps.iconUrl = 'https://example.invalid/owl.png';
   deps.fetchImpl = (async () => {
     deps.calls++;

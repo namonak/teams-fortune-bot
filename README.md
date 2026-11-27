@@ -4,15 +4,15 @@
 
 - GitHub 저장소: `namonak/teams-fortune-bot`
 - 운영 주소: `https://fortune-bot.namonak.dev`
-- 구성: TypeScript, Microsoft Agents SDK, SQLite, Gemini API, Docker Compose (`teams-meal-bot`, `teams-raffle-bot`과 같은 구조)
+- 구성: TypeScript, Microsoft Agents SDK, SQLite, OpenRouter(Gemini 모델), Docker Compose (`teams-meal-bot`, `teams-raffle-bot`과 같은 구조)
 - 이름 규칙: GitHub 저장소만 `teams-fortune-bot`이고, 컨테이너·DB·ZIP 파일은 `team-fortune-bot`을 사용합니다.
 
 ## 하는 일
 
 - 정기 발송: 업무일(주말과 공휴일 제외) 한국 시간 09:00~09:59에 30초마다 확인해 대화방마다 카드를 한 번 보냅니다. 9시에 서버가 멈춰 있었어도 10시 전에 다시 켜지면 보냅니다.
 - 같은 날 같은 내용: 운세는 날짜별로 한 번 만들어 DB에 저장하고, 모든 대화방과 멘션 재요청에 같은 저장본을 씁니다.
-- 별점: 그날 일진(날의 간지)과 각 띠의 전통 관계 규칙으로 정합니다. 문장은 Gemini가 쓱부엉 말투로 씁니다.
-- LLM 실패 대비: Gemini 호출이 실패하거나 응답 형식이 맞지 않으면 템플릿 문장으로 카드를 보냅니다. 카드는 빠지지 않습니다.
+- 별점: 그날 일진(날의 간지)과 각 띠의 전통 관계 규칙으로 정합니다. 문장은 OpenRouter를 거쳐 Gemini 모델(`google/gemini-3.6-flash`)이 쓱부엉 말투로 씁니다. OpenRouter는 여러 AI 회사의 모델을 하나의 API 키로 호출하게 해 주는 중계 서비스입니다.
+- LLM 실패 대비: LLM 호출이 실패하거나 응답 형식이 맞지 않으면 템플릿 문장으로 카드를 보냅니다. 카드는 빠지지 않습니다.
 - 카드 구성: 머리글과 요일 문구, 생일 쪽지(해당하는 날만), 머리글 요약, 12띠 한 줄 운세, 띠를 누르면 펼쳐지는 상세 운세(회의운, 점심운, 칼퇴운, 행운 메뉴, 행운의 색), 쓱부엉 근황입니다.
 - 생일 쪽지: 오늘이 생일인 사람과, 다음 업무일 전까지(주말·연휴) 생일인 사람을 미리 축하합니다. 이름과 생일은 LLM에 보내지 않습니다.
 
@@ -43,7 +43,7 @@ npm run card:preview -- 2026-11-27                # 템플릿 문장으로 dist/
 
 - `npm start`는 `.env`를 읽지 않고 셸 환경 변수를 사용합니다.
 - 인증 필수값(`MicrosoftAppId`, `MicrosoftAppPassword`, `MicrosoftAppTenantId`) 중 하나라도 없으면 서버가 시작되지 않습니다.
-- 테스트 범위: 일진·띠 관계·별점, 업무일과 생일 대상, 템플릿 문장, LLM 응답 검증, 저장소, 카드 JSON, 발송 시각과 중복 방지, 서버 인증과 멘션 명령. 실제 Teams 화면 표시와 실제 Gemini 호출은 확인하지 않습니다.
+- 테스트 범위: 일진·띠 관계·별점, 업무일과 생일 대상, 템플릿 문장, LLM 응답 검증, 저장소, 카드 JSON, 발송 시각과 중복 방지, 서버 인증과 멘션 명령. 실제 Teams 화면 표시와 실제 OpenRouter 호출은 확인하지 않습니다.
 
 ## 환경 변수
 
@@ -55,10 +55,10 @@ npm run card:preview -- 2026-11-27                # 템플릿 문장으로 dist/
 | `PUBLIC_BASE_URL` | `https://fortune-bot.namonak.dev`. 카드 아이콘 주소(`/assets/owl.png`)의 앞부분입니다. 이 값이 없으면 아이콘 주소가 도메인 없는 상대 주소가 되어 Teams에서 아이콘이 보이지 않습니다. Compose는 값이 없을 때 이 주소를 기본값으로 씁니다. |
 | `DATABASE_PATH` | 로컬 `./data/team-fortune-bot.sqlite`, 컨테이너 `/data/team-fortune-bot.sqlite`. 폴더가 없으면 처음 실행할 때 만듭니다. |
 | `PORT` | 컨테이너 내부 `3978` |
-| `GEMINI_API_KEY` | Gemini API 키. 비우면 시작은 하되 템플릿 문장만 쓰고 기동 로그에 「GEMINI_API_KEY가 없어 템플릿 문장만 씁니다」를 남깁니다. |
-| `GEMINI_MODEL` | 필요할 때만 지정. 기본값 `gemini-3.6-flash` |
-| `GEMINI_REASONING_EFFORT` | 필요할 때만 지정. 기본값 `low` |
-| `GEMINI_BASE_URL` | 필요할 때만 지정. 기본값 `https://generativelanguage.googleapis.com/v1beta/openai/` |
+| `OPENROUTER_API_KEY` | OpenRouter API 키(장부장과 같은 변수 이름). 비우면 시작은 하되 템플릿 문장만 쓰고 기동 로그에 「OPENROUTER_API_KEY가 없어 템플릿 문장만 씁니다」를 남깁니다. |
+| `OPENROUTER_MODEL` | 필요할 때만 지정. 기본값 `google/gemini-3.6-flash`. 모델명에는 제공자 접두사(`google/`)가 필요합니다. |
+| `OPENROUTER_REASONING_EFFORT` | 필요할 때만 지정. 기본값 `low` |
+| `OPENROUTER_BASE_URL` | 필요할 때만 지정. 기본값 `https://openrouter.ai/api/v1` |
 | `BIRTHDAYS` | 양력 생일 목록. `이름:MM-DD`를 쉼표로 이어 적습니다. 예: `홍길동:12-12,김철수:02-04` |
 
 생일 정보
@@ -163,15 +163,15 @@ bash scripts/package-teams-app.sh
 
 ## 예상 비용
 
-실제 Gemini 호출의 토큰 사용량은 아직 측정하지 않았습니다. 아래는 설계 문서 11절의 추정값이며, 운영 후 실제 사용량으로 다시 계산합니다.
+실제 LLM 호출의 토큰 사용량은 아직 측정하지 않았습니다. 아래는 설계 문서 11절의 추정값이며, 운영 후 실제 사용량으로 다시 계산합니다.
 
-- 단가: Gemini Developer API 가격표 기준 `gemini-3.6-flash` 유료(Standard) 단가는 100만 토큰당 입력 0.75달러, 출력 3.75달러(2026-12-31까지)이고, 2027-01-01부터 입력 1.50달러, 출력 7.50달러입니다.
+- 단가: OpenRouter 모델 목록 API 기준 `google/gemini-3.6-flash`는 100만 토큰당 입력 0.75달러, 출력 3.75달러입니다(2026-11-27 확인). Google 가격표는 2027-01-01부터 입력 1.50달러, 출력 7.50달러로 올리므로 OpenRouter 단가도 함께 오를 수 있습니다.
 - 가정: 1회 호출에 입력 약 2,500토큰, 출력 약 5,500토큰(사고 토큰 포함)
 - 추정: 2027년 단가로 1회 약 0.05달러, 연간 업무일 약 250일 기준 연 11달러 안팎
 - LLM 호출은 하루 한 번이며 대화방 수와 멘션 재요청 횟수와 관계없습니다.
-- 무료 등급은 입력 내용이 Google 제품 개선에 쓰일 수 있으므로 어느 등급을 쓸지는 운영자가 정합니다. 이름과 생일은 LLM에 보내지 않습니다.
+- OpenRouter는 요청을 모델 제공 회사로 중계하므로 입력 보존·학습 정책은 OpenRouter 계정 설정과 모델 제공 회사 정책을 따릅니다. 이름과 생일은 LLM에 보내지 않습니다.
 
-출처: [설계 문서 11절](docs/superpowers/specs/2026-11-26-team-fortune-bot-design.md), Google AI for Developers [Gemini Developer API pricing](https://ai.google.dev/gemini-api/docs/pricing)(설계 문서 작성 시 2026-11-26 확인)
+출처: [설계 문서 11절](docs/superpowers/specs/2026-11-26-team-fortune-bot-design.md), OpenRouter [모델 목록 API](https://openrouter.ai/api/v1/models)(2026-11-27 확인), Google AI for Developers [Gemini Developer API pricing](https://ai.google.dev/gemini-api/docs/pricing)(설계 문서 작성 시 2026-11-26 확인)
 
 ## 장애 확인
 
@@ -181,11 +181,11 @@ docker compose logs --tail=100 bot
 
 | 로그 | 의미 |
 | --- | --- |
-| `[llm] 템플릿 사용:` | Gemini 호출 실패나 응답 검증 실패로 그날 문장을 템플릿으로 바꿈. 뒤에 이유가 붙습니다. |
+| `[llm] 템플릿 사용:` | OpenRouter 호출 실패나 응답 검증 실패로 그날 문장을 템플릿으로 바꿈. 뒤에 이유가 붙습니다. |
 | `[발송] 운세 카드 발송 실패:` | 해당 대화방 발송 실패. 10시 전이면 다음 주기(30초 뒤)에 다시 보냅니다. |
 | `[정기 발송] 이번 주기 실행 실패` | 주기 전체가 실패. 다음 주기에 다시 시도합니다. |
 | `공휴일 표에 YYYY년이 없습니다` | `src/holidays.ts`에 그해 공휴일 추가 필요 |
-| `GEMINI_API_KEY가 없어 템플릿 문장만 씁니다` | `.env`에 키가 없어 LLM을 부르지 않는 상태 |
+| `OPENROUTER_API_KEY가 없어 템플릿 문장만 씁니다` | `.env`에 키가 없어 LLM을 부르지 않는 상태 |
 
 발송 도중 프로세스가 멈춰 완료 기록이 없는 대화방은 5분 뒤 다시 발송 대상이 됩니다.
 

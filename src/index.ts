@@ -70,7 +70,7 @@ export function createAdapter(auth: AuthConfiguration) {
 export function createApp(env: NodeJS.ProcessEnv = process.env) {
   for (const key of ['MicrosoftAppId', 'MicrosoftAppPassword', 'MicrosoftAppTenantId'])
     if (!env[key]?.trim()) throw new Error(`.env에 ${key} 설정이 필요합니다`);
-  if (!env.GEMINI_API_KEY?.trim()) console.log('GEMINI_API_KEY가 없어 템플릿 문장만 씁니다');
+  if (!env.OPENROUTER_API_KEY?.trim()) console.log('OPENROUTER_API_KEY가 없어 템플릿 문장만 씁니다');
   const appId = env.MicrosoftAppId!;
   const auth = getAuthConfigWithDefaults({ clientId: appId, clientSecret: env.MicrosoftAppPassword, tenantId: env.MicrosoftAppTenantId });
   const adapter = createAdapter(auth);

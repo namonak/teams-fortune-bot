@@ -21,7 +21,7 @@ const FAKE_AUTH = { MicrosoftAppId: '00000000-0000-0000-0000-000000000001', Micr
 test('인증 누락은 시작 거부, 무인증 요청은 401, healthz와 아이콘', async () => {
   assert.throws(() => createApp({}), /MicrosoftAppId/);
   const dir = mkdtempSync(join(tmpdir(), 'fortune-app-'));
-  const app = createApp({ ...FAKE_AUTH, DATABASE_PATH: join(dir, 'test.sqlite'), GEMINI_API_KEY: 'test-key' });
+  const app = createApp({ ...FAKE_AUTH, DATABASE_PATH: join(dir, 'test.sqlite'), OPENROUTER_API_KEY: 'test-key' });
   const request = async (method: string, url: string) => {
     let output = '';
     const socket = new Duplex({ read() {}, write(chunk, _encoding, callback) { output += chunk.toString(); callback(); } });

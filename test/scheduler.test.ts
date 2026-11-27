@@ -46,6 +46,34 @@ test('발송 시간은 업무일 09:00 이상 10:00 미만', () => {
   assert.equal(isSendWindow(new Date('2026-11-27T00:59:59Z')), true);
   assert.equal(isSendWindow(new Date('2026-11-26T23:59:00Z')), false);
   assert.equal(isSendWindow(new Date('2026-11-27T01:00:00Z')), false);
+  // 대화방 발송 시각 13:45 → 13:45 이상 14:45 미만
+  assert.equal(isSendWindow(new Date('2026-11-27T04:45:00Z'), '13:45'), true);
+  assert.equal(isSendWindow(new Date('2026-11-27T05:44:59Z'), '13:45'), true);
+  assert.equal(isSendWindow(new Date('2026-11-27T04:44:00Z'), '13:45'), false);
+  assert.equal(isSendWindow(new Date('2026-11-27T05:45:00Z'), '13:45'), false);
+  assert.equal(isSendWindow(new Date('2026-11-28T04:45:00Z'), '13:45'), false); // 토요일
+});
+
+test('대화방마다 자기 발송 시각에 보내고, 시각을 바꿔도 같은 날 다시 보내지 않는다', async () => {
+  const adapter = fakeAdapter(), deps = fakeDeps();
+  const store = Store.open(':memory:'); store.activateConversation('c1', ref('c1')); store.activateConversation('c2', ref('c2'));
+  store.setSendTime('c2', '10:30');
+  const at = (kst: string) => runScheduledTasks(adapter, 'app', store, deps, new Date(`2026-11-27T${kst}:00+09:00`));
+  await at('09:00');
+  assert.deepEqual(adapter.sent.map((s) => s.conversation), ['c1']);
+  await at('10:00'); // c1 창은 끝났고 c2는 아직
+  assert.equal(adapter.sent.length, 1);
+  store.setSendTime('c1', '10:30'); // 이미 받은 c1은 바꾼 시각이 되어도 오늘 다시 받지 않는다
+  await at('10:30');
+  assert.deepEqual(adapter.sent.map((s) => s.conversation), ['c1', 'c2']);
+  assert.equal(deps.calls, 1);
+});
+
+test('발송 시각이 된 대화방이 없으면 운세를 만들지 않는다', async () => {
+  const adapter = fakeAdapter(), deps = fakeDeps();
+  const store = Store.open(':memory:'); store.activateConversation('c1', ref('c1')); store.setSendTime('c1', '11:00');
+  await runScheduledTasks(adapter, 'app', store, deps, new Date('2026-11-27T09:00:30+09:00'));
+  assert.equal(deps.calls, 0); assert.equal(store.getFortune('2026-11-27'), null);
 });
 
 test('평일 09:00에 대화방마다 한 번, LLM은 하루 한 번', async () => {

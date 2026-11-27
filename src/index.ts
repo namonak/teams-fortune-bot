@@ -2,19 +2,45 @@ import express from 'express';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ActivityHandler, CardFactory, CloudAdapter, MessageFactory, authorizeJWT, getAuthConfigWithDefaults, type AuthConfiguration, type TurnContext } from '@microsoft/agents-hosting';
 import { kstParts } from './calendar.js';
-import { GREETING_TEXT, HELP_TEXT, NOT_YET_TEXT, buildFortuneCard } from './cards.js';
+import { NOT_YET_TEXT, TIME_FORMAT_TEXT, buildFortuneCard, greetingText, helpText, timeSetText, timeShowText } from './cards.js';
 import { runScheduledTasks, type FortuneDeps } from './scheduler.js';
 import { Store } from './store.js';
 
 const TODAY_COMMANDS = new Set(['', '오늘', '오늘운세']);
 
-export function parseCommand(text: string): 'today' | 'help' {
-  return TODAY_COMMANDS.has(text.replace(/\s+/g, '')) ? 'today' : 'help';
+export type Command = { kind: 'today' | 'help' | 'showTime' | 'badTime' } | { kind: 'setTime'; time: string };
+
+// 'H:MM'·'HH:MM'을 'HH:MM'으로 바꾼다. 07:00~18:00 밖이면 null
+export function parseSendTime(arg: string): string | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(arg);
+  if (!m || Number(m[2]) > 59) return null;
+  const time = `${m[1].padStart(2, '0')}:${m[2]}`;
+  return time >= '07:00' && time <= '18:00' ? time : null;
+}
+
+export function parseCommand(text: string): Command {
+  const t = text.trim();
+  const time = /^시간(?:\s+(.*))?$/.exec(t);
+  if (time) {
+    if (!time[1]?.trim()) return { kind: 'showTime' };
+    const value = parseSendTime(time[1].trim());
+    return value ? { kind: 'setTime', time: value } : { kind: 'badTime' };
+  }
+  return { kind: TODAY_COMMANDS.has(t.replace(/\s+/g, '')) ? 'today' : 'help' };
 }
 
 // 멘션 응답은 저장본만 쓰고 LLM을 새로 부르지 않는다
-export function mentionReply(store: Store, text: string, now: Date, iconUrl: string): { card: Record<string, unknown> } | { text: string } {
-  if (parseCommand(text) === 'help') return { text: HELP_TEXT };
+export function mentionReply(store: Store, conversationId: string, text: string, now: Date, iconUrl: string, who = ''): { card: Record<string, unknown> } | { text: string } {
+  const command = parseCommand(text);
+  switch (command.kind) {
+    case 'help': return { text: helpText(store.sendTime(conversationId)) };
+    case 'showTime': return { text: timeShowText(store.sendTime(conversationId)) };
+    case 'badTime': return { text: TIME_FORMAT_TEXT };
+    case 'setTime':
+      store.setSendTime(conversationId, command.time);
+      // 표시 이름은 마크다운으로 해석되지 않게 기호를 지운다
+      return { text: timeSetText(command.time, who.replace(/[*_`[\]<>]/g, '').trim()) };
+  }
   const fortune = store.getFortune(kstParts(now).date);
   return fortune ? { card: buildFortuneCard(fortune.facts, fortune.texts, iconUrl) } : { text: NOT_YET_TEXT };
 }
@@ -34,13 +60,13 @@ export class FortuneBot extends ActivityHandler {
     // 봇 자신이 추가되면 설치로 보고 대화방을 저장한 뒤 한 번 인사한다
     this.onMembersAdded(async (context, next) => {
       if (context.activity.membersAdded?.some((m) => m.id === context.activity.recipient?.id) && this.remember(context))
-        await context.sendActivity(MessageFactory.text(GREETING_TEXT));
+        await context.sendActivity(MessageFactory.text(greetingText(this.store.sendTime(context.activity.conversation!.id))));
       await next();
     });
     this.onMessage(async (context, next) => {
       this.remember(context);
       context.activity.removeRecipientMention();
-      const reply = mentionReply(this.store, context.activity.text ?? '', new Date(), this.iconUrl);
+      const reply = mentionReply(this.store, context.activity.conversation?.id ?? '', context.activity.text ?? '', new Date(), this.iconUrl, context.activity.from?.name ?? '');
       await context.sendActivity('card' in reply
         ? MessageFactory.attachment(CardFactory.adaptiveCard(reply.card))
         : { type: 'message', text: reply.text, textFormat: 'markdown' } as never);

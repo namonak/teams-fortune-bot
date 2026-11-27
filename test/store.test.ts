@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -51,7 +52,21 @@ test('대화방 참조는 갱신되고 null이면 기존 값을 유지한다', (
   s.activateConversation('c1', { v: 2 });
   s.activateConversation('c1', null);
   s.activateConversation('c2', null);
-  assert.deepEqual(s.conversationReferences(), [{ id: 'c1', reference: { v: 2 } }]);
+  assert.deepEqual(s.conversationReferences(), [{ id: 'c1', reference: { v: 2 }, sendTime: '09:00' }]);
+  // 다시 설치돼 참조가 갱신돼도 바꾼 발송 시각은 유지한다
+  s.setSendTime('c1', '10:15'); s.activateConversation('c1', { v: 3 });
+  assert.equal(s.sendTime('c1'), '10:15'); assert.equal(s.sendTime('없음'), '09:00');
+});
+test('발송 시각 칸이 없던 이전 DB도 열린다', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fortune-old-')), path = join(dir, 'old.sqlite');
+  const old = new DatabaseSync(path);
+  old.exec('CREATE TABLE conversation (id INTEGER PRIMARY KEY, teams_conversation_id TEXT UNIQUE NOT NULL, reference_json TEXT)');
+  old.prepare('INSERT INTO conversation (teams_conversation_id, reference_json) VALUES (?, ?)').run('c1', '{"v":1}');
+  old.close();
+  const s = Store.open(path);
+  assert.deepEqual(s.conversationReferences(), [{ id: 'c1', reference: { v: 1 }, sendTime: '09:00' }]);
+  s.close(); Store.open(path).close(); // 두 번째로 열 때 칸을 다시 추가하지 않는다
+  rmSync(dir, { recursive: true, force: true });
 });
 test('같은 날짜 운세는 처음 저장본을 유지한다', () => {
   const s = Store.open(':memory:');

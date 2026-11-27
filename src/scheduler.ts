@@ -3,14 +3,17 @@ import { isBusinessDay, kstParts, parseBirthdays } from './calendar.js';
 import { buildFortuneCard } from './cards.js';
 import { buildDayFacts } from './domain.js';
 import { generateTexts } from './llm.js';
-import type { Store, StoredFortune } from './store.js';
+import { DEFAULT_SEND_TIME, type Store, type StoredFortune } from './store.js';
 
 export type FortuneDeps = { env: NodeJS.ProcessEnv; fetchImpl?: typeof fetch; iconUrl: string };
 
-// 업무일 09:00~09:59(한국 시간). 재시작으로 9시를 놓쳐도 10시 전이면 보낸다
-export function isSendWindow(now: Date) {
+const minutes = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+
+// 업무일에 대화방 발송 시각부터 1시간 안(한국 시간). 재시작으로 발송 시각을 놓쳐도 1시간 안이면 보낸다
+export function isSendWindow(now: Date, sendTime = DEFAULT_SEND_TIME) {
   const { date, time } = kstParts(now);
-  return isBusinessDay(date) && time >= '09:00' && time < '10:00';
+  const late = minutes(time) - minutes(sendTime);
+  return late >= 0 && late < 60 && isBusinessDay(date);
 }
 
 // 같은 날짜의 운세 생성이 겹치지 않도록 진행 중인 생성을 대화방 저장소별로 보관한다
@@ -40,7 +43,8 @@ export function ensureFortune(store: Store, date: string, deps: FortuneDeps): Pr
 const sendingByStore = new WeakMap<Store, Set<string>>();
 
 export async function runScheduledTasks(adapter: Pick<CloudAdapter, 'continueConversation'>, appId: string, store: Store, deps: FortuneDeps, now = new Date()) {
-  if (!isSendWindow(now)) return;
+  const due = store.conversationReferences().filter((c) => isSendWindow(now, c.sendTime));
+  if (!due.length) return;
   const { date } = kstParts(now);
   let fortune = store.getFortune(date);
   if (!fortune) {
@@ -51,7 +55,7 @@ export async function runScheduledTasks(adapter: Pick<CloudAdapter, 'continueCon
   const card = CardFactory.adaptiveCard(buildFortuneCard(fortune.facts, fortune.texts, deps.iconUrl));
   const sending = sendingByStore.get(store) ?? new Set<string>();
   sendingByStore.set(store, sending);
-  for (const { id, reference } of store.conversationReferences()) {
+  for (const { id, reference } of due) {
     // 앞 주기의 발송이 아직 끝나지 않은 대화방은 claim하지 않는다(늦은 응답 중 5분 재확보로 두 번 나가는 것을 막는다)
     const key = `${id}\n${date}`;
     if (sending.has(key) || !store.claimDelivery(id, date, now)) continue;

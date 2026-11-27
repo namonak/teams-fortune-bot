@@ -2,16 +2,26 @@ import type { DayHint } from './calendar.js';
 import { ANIMALS, yearGanji, type DayFacts, type Relation } from './domain.js';
 import type { DayTexts } from './llm.js';
 
-export const HELP_TEXT = [
-  '저… 쓱부엉이에요… 평일 아침 9시에 띠별 운세 쪽지를 두고 가요…',
+// 'HH:MM' → '오전 9시 30분'
+export function timeLabel(hhmm: string) {
+  const h = Number(hhmm.slice(0, 2)), m = Number(hhmm.slice(3, 5));
+  return `${h < 12 ? '오전' : '오후'} ${h > 12 ? h - 12 : h}시${m ? ` ${m}분` : ''}`;
+}
+export const helpText = (sendTime: string) => [
+  `저… 쓱부엉이에요… 평일 ${timeLabel(sendTime)}에 띠별 운세 쪽지를 두고 가요…`,
   '',
   '- `@쓱부엉` 또는 `@쓱부엉 오늘`: 오늘 쪽지 다시 보기',
+  '- `@쓱부엉 시간 9:30`: 이 대화방의 쪽지 시각 바꾸기(07:00~18:00)',
+  '- `@쓱부엉 시간`: 지금 쪽지 시각 보기',
   '- `@쓱부엉 도움말`: 이 안내',
   '',
   '재미로만 봐 주세요… (쓱)',
 ].join('\n');
 export const NOT_YET_TEXT = '오늘 쪽지는… 아직이에요… (쓱)';
-export const GREETING_TEXT = '저… 평일 아침 9시에 쪽지 두고 갈게요… (쓱)';
+export const greetingText = (sendTime: string) => `저… 평일 ${timeLabel(sendTime)}에 쪽지 두고 갈게요… (쓱)`;
+export const timeSetText = (sendTime: string, who: string) => `${who ? `${who}님 말씀대로… ` : ''}앞으로 평일 ${timeLabel(sendTime)}에 쪽지 둘게요… (쓱)`;
+export const timeShowText = (sendTime: string) => `지금은 평일 ${timeLabel(sendTime)}에 쪽지를 두고 가요… 바꾸려면 \`@쓱부엉 시간 9:30\`처럼 불러 주세요… (쓱)`;
+export const TIME_FORMAT_TEXT = '저… 시각은 07:00~18:00 사이로 `@쓱부엉 시간 9:30`처럼 적어 주세요… (쓱)';
 
 const WEEKDAYS = '일월화수목금토';
 

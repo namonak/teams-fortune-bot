@@ -10,10 +10,10 @@ import test, { mock } from 'node:test';
 import { Activity } from '@microsoft/agents-activity';
 import { CloudAdapter, TurnContext, getAuthConfigWithDefaults } from '@microsoft/agents-hosting';
 import { kstParts } from '../src/calendar.js';
-import { GREETING_TEXT, HELP_TEXT, NOT_YET_TEXT, buildFortuneCard } from '../src/cards.js';
+import { NOT_YET_TEXT, TIME_FORMAT_TEXT, buildFortuneCard, greetingText, helpText, timeLabel } from '../src/cards.js';
 import { buildDayFacts } from '../src/domain.js';
 import { templateTexts } from '../src/llm.js';
-import { FortuneBot, TURN_ERROR_TEXT, createAdapter, createApp, mentionReply, parseCommand, runScheduledTick } from '../src/index.js';
+import { FortuneBot, TURN_ERROR_TEXT, createAdapter, createApp, mentionReply, parseCommand, parseSendTime, runScheduledTick } from '../src/index.js';
 import { Store } from '../src/store.js';
 
 const FAKE_AUTH = { MicrosoftAppId: '00000000-0000-0000-0000-000000000001', MicrosoftAppPassword: 'fake', MicrosoftAppTenantId: '00000000-0000-0000-0000-000000000002' };
@@ -38,17 +38,33 @@ test('인증 누락은 시작 거부, 무인증 요청은 401, healthz와 아이
 });
 
 test('명령 해석과 멘션 응답', () => {
-  assert.equal(parseCommand(' '), 'today'); assert.equal(parseCommand('오늘'), 'today'); assert.equal(parseCommand(' 오늘 운세 '), 'today');
-  assert.equal(parseCommand('도움말'), 'help'); assert.equal(parseCommand('뭐야'), 'help');
+  for (const t of [' ', '오늘', ' 오늘 운세 ']) assert.deepEqual(parseCommand(t), { kind: 'today' });
+  for (const t of ['도움말', '뭐야']) assert.deepEqual(parseCommand(t), { kind: 'help' });
   const s = Store.open(':memory:');
-  assert.deepEqual(mentionReply(s, '', new Date('2026-11-28T03:00:00Z'), 'u'), { text: NOT_YET_TEXT });
-  assert.deepEqual(mentionReply(s, '도움말', new Date('2026-11-28T03:00:00Z'), 'u'), { text: HELP_TEXT });
+  assert.deepEqual(mentionReply(s, 'c', '', new Date('2026-11-28T03:00:00Z'), 'u'), { text: NOT_YET_TEXT });
+  assert.deepEqual(mentionReply(s, 'c', '도움말', new Date('2026-11-28T03:00:00Z'), 'u'), { text: helpText('09:00') });
   const facts = buildDayFacts('2026-11-27', []), texts = templateTexts(facts);
   s.saveFortune({ date: '2026-11-27', facts, texts, source: 'template' });
   // 2026-11-27 23:00 KST(같은 날)
-  assert.deepEqual(mentionReply(s, '오늘', new Date('2026-11-27T14:00:00Z'), 'u'), { card: buildFortuneCard(facts, texts, 'u') });
+  assert.deepEqual(mentionReply(s, 'c', '오늘', new Date('2026-11-27T14:00:00Z'), 'u'), { card: buildFortuneCard(facts, texts, 'u') });
   // 2026-11-28 00:30 KST(다음 날)
-  assert.deepEqual(mentionReply(s, '오늘', new Date('2026-11-27T15:30:00Z'), 'u'), { text: NOT_YET_TEXT });
+  assert.deepEqual(mentionReply(s, 'c', '오늘', new Date('2026-11-27T15:30:00Z'), 'u'), { text: NOT_YET_TEXT });
+});
+
+test('발송 시각 명령', () => {
+  assert.equal(parseSendTime('9:30'), '09:30'); assert.equal(parseSendTime('07:00'), '07:00'); assert.equal(parseSendTime('18:00'), '18:00');
+  for (const bad of ['6:59', '18:01', '25:00', '9:60', '9시', '930', '']) assert.equal(parseSendTime(bad), null, bad);
+  assert.deepEqual(parseCommand(' 시간  9:30 '), { kind: 'setTime', time: '09:30' });
+  assert.deepEqual(parseCommand('시간'), { kind: 'showTime' });
+  assert.deepEqual(parseCommand('시간 25:00'), { kind: 'badTime' });
+  assert.equal(timeLabel('09:00'), '오전 9시'); assert.equal(timeLabel('12:05'), '오후 12시 5분'); assert.equal(timeLabel('18:00'), '오후 6시');
+  const s = Store.open(':memory:'); s.activateConversation('a', { v: 1 }); s.activateConversation('b', { v: 1 });
+  const now = new Date('2026-11-27T03:00:00Z');
+  assert.deepEqual(mentionReply(s, 'a', '시간 9:30', now, 'u', '*홍길동*'), { text: '홍길동님 말씀대로… 앞으로 평일 오전 9시 30분에 쪽지 둘게요… (쓱)' });
+  assert.deepEqual(mentionReply(s, 'a', '시간 6:00', now, 'u'), { text: TIME_FORMAT_TEXT });
+  assert.equal(s.sendTime('a'), '09:30'); assert.equal(s.sendTime('b'), '09:00');
+  assert.match((mentionReply(s, 'a', '시간', now, 'u') as { text: string }).text, /오전 9시 30분/);
+  assert.match((mentionReply(s, 'a', '도움말', now, 'u') as { text: string }).text, /평일 오전 9시 30분에/);
 });
 
 test('정기 실행 실패는 한국어 로그만 남기고 다음 주기를 막지 않는다', async (t) => {
@@ -73,10 +89,10 @@ test('설치되면 인사하고 대화방을 저장, 멘션에는 도움말로 �
   await bot.run(new TurnContext(adapter, Activity.fromObject({ ...base, type: 'conversationUpdate', membersAdded: [{ id: 'user' }] })));
   assert.equal(sent.length, 0);
   await bot.run(new TurnContext(adapter, Activity.fromObject({ ...base, type: 'conversationUpdate', membersAdded: [{ id: 'bot' }] })));
-  assert.equal(sent.length, 1); assert.equal(sent[0].text, GREETING_TEXT);
+  assert.equal(sent.length, 1); assert.equal(sent[0].text, greetingText('09:00'));
   assert.deepEqual(store.conversationReferences().map((r) => r.id), ['chat']);
   await bot.run(new TurnContext(adapter, Activity.fromObject({ ...base, type: 'message', text: '<at>쓱부엉</at> 도움말', entities: [{ type: 'mention', mentioned: { id: 'bot', name: '쓱부엉' }, text: '<at>쓱부엉</at>' }] })));
-  assert.equal(sent.length, 2); assert.equal(sent[1].text, HELP_TEXT);
+  assert.equal(sent.length, 2); assert.equal(sent[1].text, helpText('09:00'));
   // 오늘 저장본이 있으면 같은 카드를 첨부해 보낸다
   const today = kstParts(new Date()).date, facts = buildDayFacts(today, []), texts = templateTexts(facts);
   store.saveFortune({ date: today, facts, texts, source: 'template' });

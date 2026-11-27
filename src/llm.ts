@@ -42,7 +42,10 @@ export function buildPrompt(facts: DayFacts, recentNews: string[]) {
   return { system: SYSTEM, user };
 }
 
-const clean = (s: unknown) => typeof s === 'string' ? s.replace(/[*_[\]<>]/g, '').trim() : '';
+// TextBlock이 마크다운 목록·제목으로 그리지 않도록 마크다운 문자를 지우고, 줄바꿈·연속 공백을 하나로 합친 뒤 문장 앞의 목록·제목 표시(-, +, #, >, 1.)를 지웁니다.
+const clean = (s: unknown) => typeof s === 'string'
+  ? s.replace(/[*_[\]<>]/g, '').replace(/\s+/g, ' ').trim().replace(/^(?:(?:[-+#>]+|\d+\.)(?: |$))+/, '').trim()
+  : '';
 const fits = (s: string, max: number) => s.length > 0 && [...s].length <= max;
 
 // 하나라도 어긋나면 전체를 버립니다(설계 문서 5.2절).

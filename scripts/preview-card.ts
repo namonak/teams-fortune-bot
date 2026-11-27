@@ -7,7 +7,8 @@ import { buildDayFacts } from '../src/domain.js';
 import { templateTexts } from '../src/llm.js';
 
 const date = process.argv[2] ?? kstParts(new Date()).date;
-if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) {
+// 2026-02-30처럼 달력에 없는 날짜는 Date가 다음 달로 넘기므로, 되돌린 값이 입력과 같은지 봅니다.
+if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(Date.parse(date) || 0).toISOString().slice(0, 10) !== date) {
   console.error(`날짜 형식이 올바르지 않습니다: ${date} (YYYY-MM-DD)`);
   process.exit(1);
 }

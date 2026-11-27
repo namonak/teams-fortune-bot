@@ -40,6 +40,17 @@ test('마크다운 문자 제거', () => {
   assert.equal(t.news, '굵게 링크(x) b');
 });
 
+test('목록·제목 표시와 줄바꿈 정리', () => {
+  const rows = ok.rows.map((r, i) => i === 0 ? { ...r, line: '- ' + '가'.repeat(40), extra: '## 1. 첫째\r\n\n  둘째' } : i === 1 ? { ...r, line: '3시에 칼퇴…', extra: '+ 2. 점심은  12시…' } : r);
+  const t = validateTexts({ ...ok, rows, news: '- 첫째\n- 둘째', birthday: '> 축하해요…' }, true)!;
+  assert.equal(t.rows[0].line, '가'.repeat(40)); // 정리 후 길이로 검사합니다
+  assert.equal(t.rows[0].extra, '첫째 둘째');
+  assert.equal(t.rows[1].line, '3시에 칼퇴…');
+  assert.equal(t.rows[1].extra, '점심은 12시…');
+  assert.equal(t.news, '첫째 - 둘째');
+  assert.equal(t.birthday, '축하해요…');
+});
+
 test('템플릿은 같은 날 같은 문장이고 생일이 없으면 null', () => {
   assert.deepEqual(templateTexts(facts), templateTexts(facts));
   assert.ok(templateTexts(facts).birthday);

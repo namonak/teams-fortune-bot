@@ -1,0 +1,17 @@
+services:
+  bot:
+    container_name: team-fortune-bot
+    build: .
+    image: team-fortune-bot:local
+    env_file: .env
+    environment:
+      PORT: 3978
+      DATABASE_PATH: /data/team-fortune-bot.sqlite
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://fortune-bot.namonak.dev}
+    ports:
+      - "127.0.0.1:3981:3978"
+    volumes:
+      - fortune-data:/data
+    restart: unless-stopped
+volumes:
+  fortune-data:

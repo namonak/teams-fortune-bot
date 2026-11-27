@@ -67,7 +67,7 @@ export const LINES: Record<Score, readonly string[]> = {
   ],
 };
 
-// 다른 봇 언급은 하루 1~2번이 되도록 별점 5·4의 첫 문장에만 둡니다.
+// 다른 봇 언급이 몰리지 않게 별점 5·4의 첫 문장(시안 문장)에만 둡니다. 하루 1~2번 보장은 선택 코드 몫입니다.
 export const EXTRAS: Record<Score, readonly string[]> = {
   5: [
     '쿠웨이트박 판에 한 번 껴 봐도… 괜찮을지도요…',

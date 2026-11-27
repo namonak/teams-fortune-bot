@@ -15,13 +15,13 @@ export const helpText = (sendTime: string) => [
   '- `@쓱부엉 시간`: 지금 쪽지 시각 보기',
   '- `@쓱부엉 도움말`: 이 안내',
   '',
-  '재미로만 봐 주세요… (쓱)',
+  '재미로만 봐 주세요… 🦉💨',
 ].join('\n');
-export const NOT_YET_TEXT = '오늘 쪽지는… 아직이에요… (쓱)';
-export const greetingText = (sendTime: string) => `저… 평일 ${timeLabel(sendTime)}에 쪽지 두고 갈게요… (쓱)`;
-export const timeSetText = (sendTime: string, who: string) => `${who ? `${who}님 말씀대로… ` : ''}앞으로 평일 ${timeLabel(sendTime)}에 쪽지 둘게요… (쓱)`;
-export const timeShowText = (sendTime: string) => `지금은 평일 ${timeLabel(sendTime)}에 쪽지를 두고 가요… 바꾸려면 \`@쓱부엉 시간 9:30\`처럼 불러 주세요… (쓱)`;
-export const TIME_FORMAT_TEXT = '저… 시각은 07:00~18:00 사이로 `@쓱부엉 시간 9:30`처럼 적어 주세요… (쓱)';
+export const NOT_YET_TEXT = '오늘 쪽지는… 아직이에요… 🦉💨';
+export const greetingText = (sendTime: string) => `저… 평일 ${timeLabel(sendTime)}에 쪽지 두고 갈게요… 🦉💨`;
+export const timeSetText = (sendTime: string, who: string) => `${who ? `${who}님 말씀대로… ` : ''}앞으로 평일 ${timeLabel(sendTime)}에 쪽지 둘게요… 🦉💨`;
+export const timeShowText = (sendTime: string) => `지금은 평일 ${timeLabel(sendTime)}에 쪽지를 두고 가요… 바꾸려면 \`@쓱부엉 시간 9:30\`처럼 불러 주세요… 🦉💨`;
+export const TIME_FORMAT_TEXT = '저… 시각은 07:00~18:00 사이로 `@쓱부엉 시간 9:30`처럼 적어 주세요… 🦉💨';
 
 const WEEKDAYS = '일월화수목금토';
 
@@ -63,7 +63,7 @@ function birthdayBox(facts: DayFacts, text: string | null) {
   return [{
     type: 'Container', style: 'emphasis', spacing: 'Medium',
     items: [
-      { type: 'TextBlock', text: '생일 쪽지', weight: 'Bolder' },
+      { type: 'TextBlock', text: '🎂 생일 쪽지', weight: 'Bolder' },
       { type: 'TextBlock', text: lines.join(' '), wrap: true },
       ...(text ? [{ type: 'TextBlock', text, wrap: true }] : []),
     ],
@@ -93,11 +93,11 @@ export function buildFortuneCard(facts: DayFacts, texts: DayTexts, iconUrl: stri
       type: 'Container', id: `d${i}`, isVisible: false, style: 'emphasis', spacing: 'None',
       items: [
         { type: 'FactSet', facts: [
-          { title: '회의운', value: stars(r.meeting) },
-          { title: '점심운', value: stars(r.lunch) },
-          { title: '칼퇴운', value: stars(r.leave) },
-          { title: '행운 메뉴', value: r.menu },
-          { title: '행운의 색', value: r.color },
+          { title: '💬 회의운', value: stars(r.meeting) },
+          { title: '🍚 점심운', value: stars(r.lunch) },
+          { title: '🏃 칼퇴운', value: stars(r.leave) },
+          { title: '🍽️ 행운 메뉴', value: r.menu },
+          { title: '🎨 행운의 색', value: r.color },
         ] },
         { type: 'TextBlock', text: texts.rows[i].extra, wrap: true },
         { type: 'TextBlock', text: why(r.relation, dayAnimal), isSubtle: true, size: 'Small', spacing: 'Small' },
@@ -118,9 +118,9 @@ export function buildFortuneCard(facts: DayFacts, texts: DayTexts, iconUrl: stri
       ...birthdayBox(facts, texts.birthday),
       { type: 'TextBlock', text: `오늘 제일 좋은 띠는 **${ANIMALS[facts.best]}**… **${ANIMALS[facts.rest]}**띠는 쉬어 가세요…`, wrap: true, spacing: 'Medium' },
       ...rowItems,
-      { type: 'TextBlock', text: texts.news, wrap: true, separator: true },
+      { type: 'TextBlock', text: `🌙 ${texts.news}`, wrap: true, separator: true },
       { type: 'TextBlock', text: `오늘은 ${facts.ganji}일(${dayAnimal}날)이에요… 재미로만 봐 주세요…`, isSubtle: true, size: 'Small', wrap: true },
-      { type: 'TextBlock', text: '…그럼 이만. (쓱)', isSubtle: true, horizontalAlignment: 'Right', spacing: 'None' },
+      { type: 'TextBlock', text: '…그럼 이만. 🦉💨', isSubtle: true, horizontalAlignment: 'Right', spacing: 'None' },
     ],
   };
 }

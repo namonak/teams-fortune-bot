@@ -13,11 +13,13 @@ test('카드 구조', () => {
   assert.match(json, /오늘은 을사일\(뱀날\)이에요/);
   assert.match(json, /금요일이에요… 칼퇴운부터 보세요/);
   assert.doesNotMatch(json, /생일 쪽지/);
+  for (const label of ['💬 회의운', '🍚 점심운', '🏃 칼퇴운', '🍽️ 행운 메뉴', '🎨 행운의 색', `🌙 ${texts.news}`, '…그럼 이만. 🦉💨']) assert.ok(json.includes(label), label);
 });
 test('생일 상자와 별점 유지', () => {
   const facts = buildDayFacts('2026-12-11', [{ name: '홍길동', monthDay: '12-12' }, { name: '김철수', monthDay: '12-13' }]);
   const json = JSON.stringify(buildFortuneCard(facts, { ...templateTexts(facts), birthday: '케이크…' }, 'u'));
   assert.match(json, /주말에 \*\*홍길동\*\*님, \*\*김철수\*\*님 생일이 있어요… 미리 두고 가요…/);
+  assert.match(json, /🎂 생일 쪽지/);
   assert.match(json, /케이크…/);
   assert.match(json, /오늘 제일 좋은 띠는 \*\*말\*\*… \*\*소\*\*띠는 쉬어 가세요…/);
 });

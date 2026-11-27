@@ -21,4 +21,4 @@ sed "s/{{MICROSOFT_APP_ID}}/$app_id/g" appPackage/manifest.json > "$package_dir/
 zip -q -j "$package_dir/app.zip" "$package_dir/manifest.json" appPackage/color.png appPackage/outline.png
 zip -T "$package_dir/app.zip" >/dev/null
 cp "$package_dir/app.zip" "$archive"
-printf '설치 꾸러미를 만들어 두었어요… %s (쓱)\n' "$archive"
+printf '설치 꾸러미를 만들어 두었어요… %s 🦉💨\n' "$archive"

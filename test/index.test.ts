@@ -60,7 +60,7 @@ test('발송 시각 명령', () => {
   assert.equal(timeLabel('09:00'), '오전 9시'); assert.equal(timeLabel('12:05'), '오후 12시 5분'); assert.equal(timeLabel('18:00'), '오후 6시');
   const s = Store.open(':memory:'); s.activateConversation('a', { v: 1 }); s.activateConversation('b', { v: 1 });
   const now = new Date('2026-11-27T03:00:00Z');
-  assert.deepEqual(mentionReply(s, 'a', '시간 9:30', now, 'u', '*홍길동*'), { text: '홍길동님 말씀대로… 앞으로 평일 오전 9시 30분에 쪽지 둘게요… (쓱)' });
+  assert.deepEqual(mentionReply(s, 'a', '시간 9:30', now, 'u', '*홍길동*'), { text: '홍길동님 말씀대로… 앞으로 평일 오전 9시 30분에 쪽지 둘게요… 🦉💨' });
   assert.deepEqual(mentionReply(s, 'a', '시간 6:00', now, 'u'), { text: TIME_FORMAT_TEXT });
   assert.equal(s.sendTime('a'), '09:30'); assert.equal(s.sendTime('b'), '09:00');
   assert.match((mentionReply(s, 'a', '시간', now, 'u') as { text: string }).text, /오전 9시 30분/);

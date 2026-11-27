@@ -80,7 +80,7 @@ export class FortuneBot extends ActivityHandler {
   }
 }
 
-export const TURN_ERROR_TEXT = '…잠깐 문제가 생겼어요… 조금 뒤에 다시 불러 주세요. (쓱)';
+export const TURN_ERROR_TEXT = '…잠깐 문제가 생겼어요… 조금 뒤에 다시 불러 주세요. 🦉💨';
 
 // SDK 기본 처리기는 오류 문자열을 trace 활동과 영어 문장으로 대화방에 보내므로 바꾼다.
 // 상세는 서버 로그에만 남기고 대화방에는 짧은 안내 한 줄만 보낸다
@@ -129,7 +129,7 @@ export function createApp(env: NodeJS.ProcessEnv = process.env) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const app = createApp();
   const port = Number(process.env.PORT ?? 3978);
-  const server = app.listen(port, () => console.log(`쓱부엉이 ${port}번 포트에서 기다려요… (쓱)`));
+  const server = app.listen(port, () => console.log(`쓱부엉이 ${port}번 포트에서 기다려요… 🦉💨`));
   for (const signal of ['SIGINT', 'SIGTERM'])
     process.once(signal, () => server.close(() => { void app.locals.dispose().then(() => process.exit(0)); }));
 }

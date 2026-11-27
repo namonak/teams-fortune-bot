@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ANIMALS, STARS, dayGanji, relation, yearGanji } from '../src/domain.js';
+import { ANIMALS, COLORS, MENUS, STARS, buildDayFacts, dayGanji, relation, yearGanji } from '../src/domain.js';
 
 test('일진 검증값', () => {
   assert.deepEqual(dayGanji('2000-01-01'), { name: '무오', branch: 6 });
@@ -34,4 +34,14 @@ test('매일 충 1띠, 육합 1띠', () => {
     assert.equal(r.filter((x) => x === '충').length, 1);
     assert.equal(r.filter((x) => x === '육합').length, 1);
   }
+});
+test('하루 운세 값', () => {
+  const f = buildDayFacts('2026-11-27', []);
+  assert.equal(f.ganji, '을사');
+  assert.deepEqual(f.rows.map((r) => r.stars), [3,4,2,3,3,3,3,3,5,4,3,1]);
+  assert.equal(f.best, 8); assert.equal(f.rest, 11);
+  assert.deepEqual(buildDayFacts('2026-11-27', []), f);                 // 같은 날 같은 값
+  for (const r of f.rows) for (const v of [r.meeting, r.lunch, r.leave]) assert.ok(v >= 1 && v <= 5);
+  assert.ok(f.rows.every((r) => MENUS.includes(r.menu) && COLORS.includes(r.color)));
+  assert.equal(f.hint, '금요일');
 });

@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { birthdaysFor, dayHint, type Birthday, type BirthdayFacts, type DayHint } from './calendar.js';
+
 export const ANIMALS = ['쥐', '소', '호랑이', '토끼', '용', '뱀', '말', '양', '원숭이', '닭', '개', '돼지'] as const;
 
 export type Relation = '충' | '육합' | '삼합' | '형·해' | '오늘의 띠' | '보통';
@@ -36,4 +39,53 @@ export function relation(dayBranch: number, animal: number): Relation {
   const hae = (d + a) % 12 === 7; // 쥐·양, 소·말, 호랑이·뱀, 토끼·용, 원숭이·돼지, 닭·개
   if (hyung || hae) return '형·해';
   return d === a ? '오늘의 띠' : '보통';
+}
+
+// 같은 키는 언제나 같은 정수를 고릅니다(sha256 앞 4바이트).
+export function seeded(key: string, min: number, max: number) {
+  return min + (createHash('sha256').update(key).digest().readUInt32BE(0) % (max - min + 1));
+}
+
+export const MENUS: readonly string[] = [
+  '김치찌개', '된장찌개', '순두부찌개', '부대찌개', '제육볶음', '불고기', '비빔밥', '돌솥비빔밥', '김밥', '라면',
+  '칼국수', '냉면', '쌀국수', '짜장면', '짬뽕', '탕수육', '돈가스', '카레', '규동', '초밥',
+  '우동', '떡볶이', '순대국', '설렁탕', '갈비탕', '삼계탕', '쌈밥', '샌드위치', '햄버거', '파스타',
+];
+
+export const COLORS: readonly string[] = [
+  '빨강', '주황', '노랑', '연두', '초록', '하늘색', '파랑', '남색', '보라', '분홍', '하양', '검정',
+];
+
+export type RowFacts = { animal: number; relation: Relation; stars: number; meeting: number; lunch: number; leave: number; menu: string; color: string };
+
+export type DayFacts = {
+  date: string; weekday: number; ganji: string; dayBranch: number; rows: RowFacts[];
+  best: number; rest: number; hint: DayHint | null; birthday: BirthdayFacts | null;
+};
+
+const clamp = (v: number) => Math.min(5, Math.max(1, v));
+
+export function buildDayFacts(date: string, birthdays: Birthday[]): DayFacts {
+  const { name, branch } = dayGanji(date);
+  const weekday = new Date(date).getUTCDay();
+  const rows = ANIMALS.map((_, animal): RowFacts => {
+    const rel = relation(branch, animal), stars = STARS[rel];
+    const detail = (item: string) => clamp(stars + seeded(`${date}:${animal}:${item}`, -2, 2));
+    return {
+      animal, relation: rel, stars,
+      meeting: detail('meeting'),
+      lunch: detail('lunch'),
+      // 금요일에는 칼퇴운에 1을 더합니다(최대 5).
+      leave: clamp(detail('leave') + (weekday === 5 ? 1 : 0)),
+      menu: MENUS[seeded(`${date}:${animal}:menu`, 0, MENUS.length - 1)],
+      color: COLORS[seeded(`${date}:${animal}:color`, 0, COLORS.length - 1)],
+    };
+  });
+  return {
+    date, weekday, ganji: name, dayBranch: branch, rows,
+    best: rows.findIndex((r) => r.relation === '육합'),
+    rest: rows.findIndex((r) => r.relation === '충'),
+    hint: dayHint(date),
+    birthday: birthdaysFor(date, birthdays),
+  };
 }

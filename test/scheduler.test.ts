@@ -92,3 +92,44 @@ test('발송 실패는 다음 주기에 재시도', async () => {
   assert.equal(store.claimDelivery('c1', '2026-11-27', new Date('2026-11-27T00:30:00Z')), false);
   assert.equal(deps.calls, 1);
 });
+
+// 첫 sendActivity만 테스트가 끝낼 때까지 붙잡아 두고, 그 뒤 호출은 바로 성공한다
+function slowAdapter() {
+  let finish!: (ok: boolean) => void, started!: () => void;
+  const firstStarted = new Promise<void>((r) => { started = r; });
+  let calls = 0;
+  const adapter = {
+    get calls() { return calls; }, firstStarted, finish: (ok: boolean) => finish(ok),
+    async continueConversation(_appId: string, _reference: any, fn: (ctx: any) => Promise<void>) {
+      const context = {
+        sendActivity: () => ++calls > 1 ? Promise.resolve({ id: `m${calls}` }) : new Promise((resolve, reject) => {
+          finish = (ok) => ok ? resolve({ id: 'm1' }) : reject(new Error('late_failure'));
+          started();
+        }),
+      };
+      try { await fn(context); } catch { /* onTurnError가 처리한 것으로 본다 */ }
+    },
+  };
+  return adapter as typeof adapter & Parameters<typeof runScheduledTasks>[0];
+}
+
+for (const ok of [true, false]) {
+  test(`첫 발송이 5분 넘게 늦어도 다음 주기는 겹쳐 보내지 않음(늦게 ${ok ? '성공' : '실패'})`, async () => {
+    const adapter = slowAdapter(), deps = fakeDeps();
+    const store = Store.open(':memory:'); store.activateConversation('c1', ref('c1'));
+    const original = console.error;
+    console.error = () => {};
+    try {
+      const first = runScheduledTasks(adapter, 'app', store, deps, new Date('2026-11-27T00:00:30Z'));
+      await adapter.firstStarted;
+      await runScheduledTasks(adapter, 'app', store, deps, new Date('2026-11-27T00:06:30Z'));
+      assert.equal(adapter.calls, 1);
+      adapter.finish(ok);
+      await first;
+    } finally { console.error = original; }
+    await runScheduledTasks(adapter, 'app', store, deps, new Date('2026-11-27T00:07:00Z'));
+    // 늦게 성공하면 기록이 남아 다시 보내지 않고, 늦게 실패하면 다음 주기에 다시 보낸다
+    assert.equal(adapter.calls, ok ? 1 : 2);
+    assert.equal(store.claimDelivery('c1', '2026-11-27', new Date('2026-11-27T00:30:00Z')), false);
+  });
+}

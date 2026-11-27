@@ -35,6 +35,10 @@ export function ensureFortune(store: Store, date: string, deps: FortuneDeps): Pr
   return p;
 }
 
+// 진행 중인 발송(대화방 id + 날짜)을 저장소 객체별로 보관한다
+// ponytail: 컨테이너 하나에 프로세스 하나로 도는 전제다. 프로세스가 둘 이상이 되면 delivery 테이블에 발송 소유자 표시를 두어 claim과 release를 묶는다
+const sendingByStore = new WeakMap<Store, Set<string>>();
+
 export async function runScheduledTasks(adapter: Pick<CloudAdapter, 'continueConversation'>, appId: string, store: Store, deps: FortuneDeps, now = new Date()) {
   if (!isSendWindow(now)) return;
   const { date } = kstParts(now);
@@ -45,8 +49,13 @@ export async function runScheduledTasks(adapter: Pick<CloudAdapter, 'continueCon
     fortune = await ensureFortune(store, date, deps);
   }
   const card = CardFactory.adaptiveCard(buildFortuneCard(fortune.facts, fortune.texts, deps.iconUrl));
+  const sending = sendingByStore.get(store) ?? new Set<string>();
+  sendingByStore.set(store, sending);
   for (const { id, reference } of store.conversationReferences()) {
-    if (!store.claimDelivery(id, date, now)) continue;
+    // 앞 주기의 발송이 아직 끝나지 않은 대화방은 claim하지 않는다(늦은 응답 중 5분 재확보로 두 번 나가는 것을 막는다)
+    const key = `${id}\n${date}`;
+    if (sending.has(key) || !store.claimDelivery(id, date, now)) continue;
+    sending.add(key);
     try {
       // continueConversation은 logic 안 예외를 onTurnError로 넘기고 정상 종료하므로 안에서 잡아 밖에서 다시 던진다
       let messageId: string | undefined, error: unknown;
@@ -59,6 +68,8 @@ export async function runScheduledTasks(adapter: Pick<CloudAdapter, 'continueCon
     } catch (error) {
       store.releaseDelivery(id, date);
       console.error('[발송] 운세 카드 발송 실패:', id, error);
+    } finally {
+      sending.delete(key);
     }
   }
 }

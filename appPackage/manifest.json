@@ -1,0 +1,33 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.22",
+  "version": "1.0.0",
+  "id": "{{MICROSOFT_APP_ID}}",
+  "developer": {
+    "name": "Joannes",
+    "websiteUrl": "https://namonak.dev",
+    "privacyUrl": "https://namonak.dev/privacy",
+    "termsOfUseUrl": "https://namonak.dev/terms"
+  },
+  "name": { "short": "쓱부엉", "full": "팀 운세 쪽지 쓱부엉" },
+  "icons": { "color": "color.png", "outline": "outline.png" },
+  "accentColor": "#14B8A6",
+  "description": {
+    "short": "아침마다 띠별 운세 쪽지를… 쓱 두고 가요.",
+    "full": "평일 아침 9시에 12띠 운세 카드를 단체방에 두고 갑니다. 자기 띠를 누르면 회의운, 점심운, 칼퇴운이 펼쳐져요. 생일인 날엔 쪽지를 하나 더 두고 가요."
+  },
+  "bots": [{
+    "botId": "{{MICROSOFT_APP_ID}}",
+    "scopes": ["groupChat"],
+    "supportsFiles": false,
+    "isNotificationOnly": false,
+    "commandLists": [{
+      "scopes": ["groupChat"],
+      "commands": [
+        {"title": "오늘", "description": "오늘 쪽지를… 다시 보여드려요…"},
+        {"title": "도움말", "description": "제가 뭘 하는지… 알려드려요…"}
+      ]
+    }]
+  }],
+  "validDomains": ["fortune-bot.namonak.dev"]
+}

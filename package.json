@@ -1,0 +1,27 @@
+{
+  "name": "team-fortune-bot",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --outDir dist --rootDir src -p tsconfig.build.json",
+    "start": "tsx src/index.ts",
+    "card:preview": "tsx scripts/preview-card.ts"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  },
+  "dependencies": {
+    "@microsoft/agents-hosting": "^1.10.2",
+    "express": "^5.2.1"
+  },
+  "overrides": {
+    "body-parser": "2.4.0",
+    "proxy-addr": "2.0.8"
+  }
+}

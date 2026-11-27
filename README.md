@@ -163,15 +163,20 @@ bash scripts/package-teams-app.sh
 
 ## 예상 비용
 
-실제 LLM 호출의 토큰 사용량은 아직 측정하지 않았습니다. 아래는 설계 문서 11절의 추정값이며, 운영 후 실제 사용량으로 다시 계산합니다.
+2026-11-27 운영 서버에서 기본 설정(`google/gemini-3.6-flash`, 추론 강도 `low`)으로 OpenRouter를 두 번 호출해 측정한 값입니다. 비용은 OpenRouter 응답의 사용량(`usage.cost`) 값입니다.
+
+| 호출 | 입력 토큰 | 출력 토큰 | 사고 토큰 | 비용 | 응답 시간 |
+| --- | --- | --- | --- | --- | --- |
+| 생일 없는 날 | 1,224 | 559 | 0 | 0.0030달러 | 3.7초 |
+| 미리 축하 생일이 있는 날 | 1,248 | 461 | 0 | 0.0027달러 | 4.1초 |
 
 - 단가: OpenRouter 모델 목록 API 기준 `google/gemini-3.6-flash`는 100만 토큰당 입력 0.75달러, 출력 3.75달러입니다(2026-11-27 확인). Google 가격표는 2027-01-01부터 입력 1.50달러, 출력 7.50달러로 올리므로 OpenRouter 단가도 함께 오를 수 있습니다.
-- 가정: 1회 호출에 입력 약 2,500토큰, 출력 약 5,500토큰(사고 토큰 포함)
-- 추정: 2027년 단가로 1회 약 0.05달러, 연간 업무일 약 250일 기준 연 11달러 안팎
+- 추정: 1회 약 0.003달러, 연간 업무일 약 250일 기준 연 0.7달러 안팎입니다. 2027년 인상 단가가 적용되면 연 1.4달러 안팎입니다.
+- 설계 문서 11절의 추정값(연 11달러 안팎)은 출력을 사고 토큰 포함 약 5,500토큰으로 잡은 값이며, 실측 출력은 약 500토큰이었습니다.
 - LLM 호출은 하루 한 번이며 대화방 수와 멘션 재요청 횟수와 관계없습니다.
 - OpenRouter는 요청을 모델 제공 회사로 중계하므로 입력 보존·학습 정책은 OpenRouter 계정 설정과 모델 제공 회사 정책을 따릅니다. 이름과 생일은 LLM에 보내지 않습니다.
 
-출처: [설계 문서 11절](docs/superpowers/specs/2026-11-26-team-fortune-bot-design.md), OpenRouter [모델 목록 API](https://openrouter.ai/api/v1/models)(2026-11-27 확인), Google AI for Developers [Gemini Developer API pricing](https://ai.google.dev/gemini-api/docs/pricing)(설계 문서 작성 시 2026-11-26 확인)
+출처: 운영 서버 실측(2026-11-27), [설계 문서 11절](docs/superpowers/specs/2026-11-26-team-fortune-bot-design.md), OpenRouter [모델 목록 API](https://openrouter.ai/api/v1/models)(2026-11-27 확인), Google AI for Developers [Gemini Developer API pricing](https://ai.google.dev/gemini-api/docs/pricing)(설계 문서 작성 시 2026-11-26 확인)
 
 ## 장애 확인
 

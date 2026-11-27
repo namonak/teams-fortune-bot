@@ -1,6 +1,6 @@
 import express from 'express';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ActivityHandler, CardFactory, CloudAdapter, MessageFactory, authorizeJWT, getAuthConfigWithDefaults, type TurnContext } from '@microsoft/agents-hosting';
+import { ActivityHandler, CardFactory, CloudAdapter, MessageFactory, authorizeJWT, getAuthConfigWithDefaults, type AuthConfiguration, type TurnContext } from '@microsoft/agents-hosting';
 import { kstParts } from './calendar.js';
 import { GREETING_TEXT, HELP_TEXT, NOT_YET_TEXT, buildFortuneCard } from './cards.js';
 import { runScheduledTasks, type FortuneDeps } from './scheduler.js';
@@ -54,13 +54,26 @@ export class FortuneBot extends ActivityHandler {
   }
 }
 
+export const TURN_ERROR_TEXT = '…잠깐 문제가 생겼어요… 조금 뒤에 다시 불러 주세요. (쓱)';
+
+// SDK 기본 처리기는 오류 문자열을 trace 활동과 영어 문장으로 대화방에 보내므로 바꾼다.
+// 상세는 서버 로그에만 남기고 대화방에는 짧은 안내 한 줄만 보낸다
+export function createAdapter(auth: AuthConfiguration) {
+  const adapter = new CloudAdapter(auth);
+  adapter.onTurnError = async (context, error) => {
+    console.error('[대화] 요청 처리 실패:', error);
+    try { await context.sendActivity(MessageFactory.text(TURN_ERROR_TEXT)); } catch (sendError) { console.error('[대화] 오류 안내 전송 실패:', sendError); }
+  };
+  return adapter;
+}
+
 export function createApp(env: NodeJS.ProcessEnv = process.env) {
   for (const key of ['MicrosoftAppId', 'MicrosoftAppPassword', 'MicrosoftAppTenantId'])
     if (!env[key]?.trim()) throw new Error(`.env에 ${key} 설정이 필요합니다`);
   if (!env.GEMINI_API_KEY?.trim()) console.log('GEMINI_API_KEY가 없어 템플릿 문장만 씁니다');
   const appId = env.MicrosoftAppId!;
   const auth = getAuthConfigWithDefaults({ clientId: appId, clientSecret: env.MicrosoftAppPassword, tenantId: env.MicrosoftAppTenantId });
-  const adapter = new CloudAdapter(auth);
+  const adapter = createAdapter(auth);
   const store = Store.open(env.DATABASE_PATH ?? './data/team-fortune-bot.sqlite');
   const iconUrl = `${(env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '')}/assets/owl.png`;
   const deps: FortuneDeps = { env, iconUrl };

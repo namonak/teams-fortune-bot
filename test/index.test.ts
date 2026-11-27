@@ -13,7 +13,7 @@ import { kstParts } from '../src/calendar.js';
 import { GREETING_TEXT, HELP_TEXT, NOT_YET_TEXT, buildFortuneCard } from '../src/cards.js';
 import { buildDayFacts } from '../src/domain.js';
 import { templateTexts } from '../src/llm.js';
-import { FortuneBot, createApp, mentionReply, parseCommand, runScheduledTick } from '../src/index.js';
+import { FortuneBot, TURN_ERROR_TEXT, createAdapter, createApp, mentionReply, parseCommand, runScheduledTick } from '../src/index.js';
 import { Store } from '../src/store.js';
 
 const FAKE_AUTH = { MicrosoftAppId: '00000000-0000-0000-0000-000000000001', MicrosoftAppPassword: 'fake', MicrosoftAppTenantId: '00000000-0000-0000-0000-000000000002' };
@@ -83,4 +83,32 @@ test('설치되면 인사하고 대화방을 저장, 멘션에는 도움말로 �
   await bot.run(new TurnContext(adapter, Activity.fromObject({ ...base, type: 'message', text: '<at>쓱부엉</at>', entities: [{ type: 'mention', mentioned: { id: 'bot', name: '쓱부엉' }, text: '<at>쓱부엉</at>' }] })));
   assert.equal(sent.length, 3);
   assert.deepEqual(sent[2].attachments[0].content, buildFortuneCard(facts, texts, 'https://example.invalid/assets/owl.png'));
+});
+
+test('처리 중 예외는 상세를 서버 로그에만 남기고 대화방에는 짧은 안내 한 줄만 보낸다', async (t) => {
+  const error = mock.method(console, 'error', () => {});
+  t.after(() => error.mock.restore());
+  const adapter = createAdapter(getAuthConfigWithDefaults({ clientId: 'app', clientSecret: 'secret', tenantId: 'tenant' }));
+  let failSend = false;
+  const sent: any[] = [];
+  Object.assign(adapter, {
+    createConnectorClientWithIdentity: async () => ({}), createUserTokenClient: async () => ({}),
+    sendActivities: async (_context: unknown, activities: any[]) => { if (failSend) throw new Error('send failed'); sent.push(...activities); return activities.map(() => ({ id: 'm' })); },
+  });
+  // 닫힌 저장소로 멘션을 처리하면 대화방 저장에서 예외가 난다
+  const store = Store.open(':memory:'); store.close();
+  const bot = new FortuneBot(store, 'u');
+  const message = new TurnContext(adapter, Activity.fromObject({ type: 'message', channelId: 'msteams', serviceUrl: 'https://example.invalid/', conversation: { id: 'chat' }, recipient: { id: 'bot' }, from: { id: 'user' }, text: '오늘' }));
+  // 처리기 밖으로 나온 예외가 실제 CloudAdapter의 onTurnError로 가도록 continueConversation 안에서 봇을 실행한다
+  const turn = () => adapter.continueConversation('app', { serviceUrl: 'https://example.invalid/', channelId: 'msteams', conversation: { id: 'chat' }, agent: { id: 'bot' }, user: { id: 'user' } } as never, () => bot.run(message));
+  await turn();
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].type, 'message'); assert.equal(sent[0].text, TURN_ERROR_TEXT);
+  assert.ok(!JSON.stringify(sent).includes('database is not open'));
+  assert.match(String(error.mock.calls[0].arguments[0]), /처리 실패/);
+  assert.match(String(error.mock.calls[0].arguments[1]), /database is not open/);
+  // 안내 전송까지 실패해도 예외가 밖으로 나가지 않는다
+  failSend = true;
+  await turn();
+  assert.equal(sent.length, 1);
 });

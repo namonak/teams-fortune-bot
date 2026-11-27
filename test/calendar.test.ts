@@ -30,3 +30,12 @@ test('생일 대상', () => {
   assert.deepEqual(birthdaysFor('2026-12-11', [{ name: '홍길동', monthDay: '12-12' }]), { today: [], ahead: ['홍길동'], when: '내일은' });
   assert.deepEqual(birthdaysFor('2027-02-26', [{ name: '김철수', monthDay: '02-29' }]), { today: [], ahead: ['김철수'], when: '주말에' }); // 평년이라 2/28(일)
 });
+test('공휴일 표에 없는 연도는 연도별로 한 번만 경고', (t) => {
+  const warn = t.mock.method(console, 'warn', () => {});
+  assert.equal(isBusinessDay('2026-12-24'), true);            // 표에 있는 연도
+  assert.equal(warn.mock.callCount(), 0);
+  assert.equal(isBusinessDay('2028-03-01'), true);            // 표가 없어 주말만 쉬는 날로 판정
+  assert.equal(isBusinessDay('2028-03-02'), true);
+  assert.equal(warn.mock.callCount(), 1);
+  assert.match(String(warn.mock.calls[0].arguments[0]), /2028년/);
+});

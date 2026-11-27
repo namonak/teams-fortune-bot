@@ -11,6 +11,15 @@ const dates = new Set([
   '2027-10-03', '2027-10-04', '2027-10-09', '2027-10-11', '2027-12-25', '2027-12-27',
 ]);
 
+const years = new Set([...dates].map((d) => d.slice(0, 4)));
+const warned = new Set<string>();
+
+// ponytail: 공휴일 표는 연 1회 수동 갱신이 필요합니다. 표에 없는 연도는 주말만 쉬는 날로 판정하고 연도별로 한 번 경고합니다.
 export function isKoreanHoliday(date: string) {
+  const year = date.slice(0, 4);
+  if (!years.has(year) && !warned.has(year)) {
+    warned.add(year);
+    console.warn(`공휴일 표에 ${year}년이 없습니다. src/holidays.ts를 갱신하세요`);
+  }
   return dates.has(date);
 }
